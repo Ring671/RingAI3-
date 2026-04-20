@@ -1,0 +1,294 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>RingAI3</title>
+  <style>
+    :root {
+      --bg: #313338;
+      --sidebar: #2b2d31;
+      --chat: #262729;
+      --input: #383a40;
+      --card: #18191A;
+      --text: #dbdee1;
+      --sub: #9ca3af;
+      --blue: #23a559;
+      --green: #23a559;
+    }
+    * {
+      box-sizing: border-box;
+      margin: 0;
+      padding: 0;
+    }
+    body {
+      font-family: 'Segoe UI', sans-serif;
+      background: var(--bg);
+      color: var(--text);
+      height: 100vh;
+      display: flex;
+      flex-direction: column;
+    }
+    .top-bar {
+      background: var(--green);
+      height: 45px;
+      display: flex;
+      align-items: center;
+      padding: 0 15px;
+      font-size: 13px;
+      font-weight: bold;
+    }
+    .main {
+      flex: 1;
+      display: flex;
+    }
+    .sidebar {
+      width: 240px;
+      background: var(--sidebar);
+      padding: 10px 12px;
+      display: flex;
+      flex-direction: column;
+    }
+    .persona-label {
+      color: var(--sub);
+      font-size: 9px;
+      font-weight: bold;
+      margin-bottom: 4px;
+    }
+    .persona-container {
+      flex: 1;
+      background: var(--sidebar);
+      padding: 10px;
+    }
+    .persona-canvas {
+      background: var(--input);
+      border-radius: 12px;
+      padding: 10px;
+      height: 100%;
+      display: flex;
+      flex-direction: column;
+    }
+    .persona-text {
+      background: var(--input);
+      color: var(--text);
+      border: none;
+      outline: none;
+      resize: none;
+      font-family: inherit;
+      font-size: 9px;
+      flex: 1;
+      padding: 5px;
+    }
+    .apply-btn {
+      background: var(--green);
+      color: white;
+      border: none;
+      padding: 10px;
+      border-radius: 5px;
+      cursor: pointer;
+      font-size: 10px;
+      font-weight: 600;
+      margin-top: 10px;
+    }
+    .chat-frame {
+      flex: 1;
+      background: var(--chat);
+      display: flex;
+      flex-direction: column;
+    }
+    .chat-body {
+      flex: 1;
+      overflow-y: auto;
+      padding: 10px;
+      display: flex;
+      flex-direction: column;
+      gap: 5px;
+    }
+    .message-row {
+      display: flex;
+      margin-bottom: 5px;
+    }
+    .message-bubble {
+      max-width: 500px;
+      padding: 15px;
+      border-radius: 15px;
+      font-size: 10px;
+      line-height: 1.4;
+      word-wrap: break-word;
+    }
+    .user-bubble {
+      background: var(--blue);
+      color: white;
+      margin-left: auto;
+      border-bottom-right-radius: 5px;
+    }
+    .ai-bubble {
+      background: var(--card);
+      color: white;
+      border-bottom-left-radius: 5px;
+    }
+    .voice-btn {
+      width: 44px;
+      height: 44px;
+      background: #3a3d42;
+      border-radius: 50%;
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      cursor: pointer;
+      margin-left: 6px;
+      font-size: 11px;
+    }
+    .input-container {
+      background: var(--bg);
+      padding: 8px 12px;
+    }
+    .input-row {
+      display: flex;
+      gap: 6px;
+      align-items: center;
+    }
+    .input-field {
+      flex: 1;
+      background: var(--input);
+      border: none;
+      border-radius: 20px;
+      padding: 12px 20px;
+      color: var(--text);
+      font-size: 11px;
+      outline: none;
+    }
+    .send-btn {
+      width: 45px;
+      height: 45px;
+      background: var(--blue);
+      border: none;
+      border-radius: 50%;
+      cursor: pointer;
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      font-size: 10px;
+      font-weight: bold;
+      color: white;
+    }
+    .send-btn:hover {
+      background: #47c44d;
+    }
+  </style>
+</head>
+<body>
+  <div class="top-bar">
+    RingAI3
+  </div>
+  <div class="main">
+    <div class="sidebar">
+      <div class="persona-label">PERSONA</div>
+      <div class="persona-container">
+        <div class="persona-canvas">
+          <textarea class="persona-text" id="personaText" placeholder="Put a persona here."></textarea>
+          <button class="apply-btn" id="applyBtn">Apply Persona</button>
+        </div>
+      </div>
+    </div>
+    <div class="chat-frame">
+      <div class="chat-body" id="chatBody"></div>
+      <div class="input-container">
+        <div class="input-row">
+          <input class="input-field" id="userInput" type="text" placeholder="Type your message...">
+          <button class="send-btn" id="sendBtn">➤</button>
+        </div>
+      </div>
+    </div>
+  </div>
+
+  <script>
+    const personaText = document.getElementById('personaText');
+    const applyBtn = document.getElementById('applyBtn');
+    const chatBody = document.getElementById('chatBody');
+    const userInput = document.getElementById('userInput');
+    const sendBtn = document.getElementById('sendBtn');
+
+    let messages = [];
+    const API_KEY = "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";
+    const URL = "https://openrouter.ai/api/v1/chat/completions";
+
+    function speak(text) {
+      if ('speechSynthesis' in window) {
+        const utterance = new SpeechSynthesisUtterance(text);
+        utterance.rate = 1.8;
+        window.speechSynthesis.speak(utterance);
+      }
+    }
+
+    function addMessage(text, sender) {
+      const row = document.createElement('div');
+      row.className = 'message-row';
+
+      if (sender === 'user') {
+        const bubble = document.createElement('div');
+        bubble.className = 'message-bubble user-bubble';
+        bubble.textContent = text;
+        row.appendChild(bubble);
+      } else {
+        const bubble = document.createElement('div');
+        bubble.className = 'message-bubble ai-bubble';
+        bubble.textContent = text;
+        row.appendChild(bubble);
+
+        const voiceBtn = document.createElement('div');
+        voiceBtn.className = 'voice-btn';
+        voiceBtn.textContent = '🎤';
+        voiceBtn.onclick = () => speak(text);
+        row.appendChild(voiceBtn);
+      }
+
+      chatBody.appendChild(row);
+      chatBody.scrollTop = chatBody.scrollHeight;
+    }
+
+    applyBtn.onclick = () => {
+      const persona = personaText.value.trim();
+      if (persona) {
+        messages = [{ role: 'system', content: persona }];
+      }
+    };
+
+    async function sendMessage() {
+      const text = userInput.value.trim();
+      if (!text) return;
+
+      userInput.value = '';
+      addMessage(text, 'user');
+
+      messages.push({ role: 'user', content: text });
+
+      try {
+        const response = await fetch(URL, {
+          method: 'POST',
+          headers: {
+            'Authorization': 'Bearer ' + API_KEY,
+            'Content-Type': 'application/json'
+          },
+          body: JSON.stringify({
+            model: 'meta-llama/llama-3-8b-instruct',
+            messages
+          })
+        });
+
+        const data = await response.json();
+        const reply = data.choices?.[0]?.message?.content || 'Error: No response';
+        messages.push({ role: 'assistant', content: reply });
+        addMessage(reply, 'ai');
+      } catch (error) {
+        addMessage('Error: ' + error.message, 'ai');
+      }
+    }
+
+    sendBtn.onclick = sendMessage;
+    userInput.onkeydown = (e) => {
+      if (e.key === 'Enter') sendMessage();
+    };
+  </script>
+</body>
+</html>
